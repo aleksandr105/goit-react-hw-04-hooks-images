@@ -4,7 +4,7 @@ import { ImageGallery } from 'components/ImageGallery/ImageGallery';
 import { HelpText, Wrapper } from './App.styled';
 import { LoadMore } from 'components/ButtonLoadMore/LoadMore';
 import { Spiner } from 'components/Loader/Loader';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 
 let totalElSearch = null;
 
@@ -14,8 +14,6 @@ export const App = () => {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
-
-  const scrollRef = useRef(window.pageYOffset);
 
   useEffect(() => {
     if (searchQuery === '') {
