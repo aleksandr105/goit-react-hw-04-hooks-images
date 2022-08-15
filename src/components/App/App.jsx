@@ -4,15 +4,40 @@ import { ImageGallery } from 'components/ImageGallery/ImageGallery';
 import { HelpText, Wrapper } from './App.styled';
 import { LoadMore } from 'components/ButtonLoadMore/LoadMore';
 import { Spiner } from 'components/Loader/Loader';
-import { useEffect, useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+
+let totalElSearch = null;
 
 export const App = () => {
   const [dataGallery, setDataGallery] = useState([]);
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState(null);
-  const [totalElSearch, setTotalElSearch] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
-  const [searchData, setSearchData] = useState('');
+
+  const scrollRef = useRef(window.pageYOffset);
+
+  useEffect(() => {
+    if (searchQuery === '') {
+      return;
+    }
+
+    searchImages(searchQuery, page)
+      .then(dataSearch => {
+        if (dataSearch.hits.length === 0) {
+          totalElSearch = null;
+          return Promise.reject(
+            `Can't find ${searchQuery} :-(, try something else`
+          );
+        } else {
+          totalElSearch = dataSearch.totalHits;
+          setDataGallery(prev => [...prev, ...dataSearch.hits]);
+          setError(null);
+        }
+      })
+      .catch(error => setError(error))
+      .finally(() => setStatus('resolved'));
+  }, [page, searchQuery]);
 
   const onSearch = ({ searchData }, { resetForm }) => {
     if (searchData.trim() === '') {
@@ -20,49 +45,22 @@ export const App = () => {
       return;
     }
 
-    setSearchData(searchData);
-    setStatus('pending');
-    setPage(1);
+    if (searchData === searchQuery) {
+      resetForm();
+      return;
+    }
 
-    searchImages(searchData, page)
-      .then(dataSearch => {
-        if (dataSearch.hits.length === 0) {
-          return Promise.reject(
-            `Can't find ${searchData} :-(, try something else`
-          );
-        } else {
-          setTotalElSearch(dataSearch.totalHits);
-          setDataGallery(dataSearch.hits);
-          setError(null);
-        }
-      })
-      .catch(error => setError(error))
-      .finally(setStatus('resolved'));
+    totalElSearch = null;
+    setPage(1);
+    setSearchQuery(searchData);
+    setStatus('pending');
+    setDataGallery([]);
 
     resetForm();
   };
 
-  useEffect(() => {
-    if (page === 1) {
-      return;
-    }
-    setStatus('pending');
-
-    searchImages(searchData, page)
-      .then(dataSearch => {
-        setDataGallery(prevState => [...prevState, ...dataSearch.hits]);
-      })
-      .finally(setStatus('resolved'));
-
-    return () => {
-      setDataGallery([]);
-      setPage(1);
-      setTotalElSearch(null);
-    };
-  }, [page, searchData]);
-
   const onLoadMore = () => {
-    setPage(prevPage => prevPage + 1);
+    setPage(prev => prev + 1);
   };
 
   return (
@@ -83,7 +81,7 @@ export const App = () => {
 
       {error && <HelpText>{error}</HelpText>}
 
-      {dataGallery.length < totalElSearch && (
+      {dataGallery.length < totalElSearch && status !== 'pending' && (
         <LoadMore onLoadMore={onLoadMore} />
       )}
     </Wrapper>
